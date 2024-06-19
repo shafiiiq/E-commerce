@@ -166,6 +166,10 @@ const Users = mongoose.model("Users", {
     password: {
         type: String,
         require: true
+    },
+    cart: {
+        type: Array,
+        default: []
     }
 })
 
@@ -184,7 +188,7 @@ app.post('/signup', async (req, res) => {
 
     let cart = {}
 
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i <= 500; i++) {
         cart[i] = 0
     }
 
@@ -241,6 +245,11 @@ app.post('/login', async(req, res) => {
             error: "User is not found"
         })
     }
+})
+
+// End point to add products to cart 
+app.post('/addtocart', async (req, res) => {
+
 })
 
 app.listen(port, (err) => {
