@@ -9,14 +9,19 @@ The E-commerce application consists of three main components:
 
 ## Directory Structure
 
-E-commerce/
-│
-├── adminpanel/    # Admin interface (port 3001)
-│
-├── backend/       # Backend REST API (port 4000)
-│
-└── frontend/      # User interface (port 3000)
+Certainly! Here's a concise representation of the directory structure for your E-commerce application:
 
+- **adminpanel/**  
+  Admin interface  
+  Port: 3001
+
+- **backend/**  
+  Backend REST API  
+  Port: 4000
+
+- **frontend/**  
+  User interface  
+  Port: 3000
 
 ## Cloning the Repository
 
