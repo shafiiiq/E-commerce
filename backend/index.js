@@ -373,7 +373,7 @@ app.get('/getcart', authUser, async (req, res) => {
                 }
             }
         }
-        
+
         res.json(productsInCart);
     } catch (error) {
         console.error("Error fetching user's cart:", error.message);
@@ -381,7 +381,24 @@ app.get('/getcart', authUser, async (req, res) => {
     }
 });
 
+// Endpoint to fetch a product by id
+app.get('/product/:id', async (req, res) => {
+    const productId = req.params.id;
+    console.log(productId);
 
+    try {
+        let product = await Product.findOne({ id: productId });
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        res.json(product);
+    } catch (error) {
+        console.error('Error fetching product:', error.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 app.listen(port, (err) => {
     if (!err) {
