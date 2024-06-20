@@ -17,6 +17,7 @@ E-commerce/
 │
 └── frontend/      # User interface (port 3000)
 
+
 ## Cloning the Repository
 
 1. Copy the GitHub repository URL.
