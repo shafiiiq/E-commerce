@@ -11,8 +11,6 @@ const cors = require("cors")
 app.use(express.json());
 app.use(cors());
 
-// 0k3KHTmoR5WhL7SF
-
 // Database connection with mongodb 
 mongoose.connect('mongodb+srv://shafiiq688:0k3KHTmoR5WhL7SF@cluster0.twt9xff.mongodb.net/e-commerce')
 
@@ -33,7 +31,7 @@ const storage = multer.diskStorage({
     }
 });
 
-
+// Create storage 
 const upload = multer({
     storage: storage
 })
@@ -47,7 +45,7 @@ app.post('/upload', upload.single('product'), (req, res) => {
     })
 })
 
-// Schema for creating products 
+// Schema for Products collection 
 const Product = mongoose.model("Product", {
     id: {
         type: Number,
@@ -89,6 +87,10 @@ const Product = mongoose.model("Product", {
         type: Number,
         require: true
     },
+    quantity: {
+        type: Number,
+        require: true
+    },
     date: {
         type: Date,
         default: Date.now
@@ -123,11 +125,11 @@ app.post('/add-products', async (req, res) => {
         description: req.body.description,
         quality: req.body.quality,
         brand: req.body.brand,
+        size: req.body.size,
+        quantity: req.body.quantity
     });
 
-    console.log(product);
     await product.save();
-    console.log("Successfully added the product");
 
     res.json({
         success: 1,
@@ -137,11 +139,10 @@ app.post('/add-products', async (req, res) => {
 
 
 // Endpoint for removing the products 
-app.post('/delete-products', async (req, res) => {
+app.post('/delete-product', async (req, res) => {
     await Product.findOneAndDelete({
         id: req.body.id
     })
-    console.log("Removed the product");
 
     res.json({
         success: true,
@@ -152,12 +153,75 @@ app.post('/delete-products', async (req, res) => {
 // End point for fetching all products 
 app.get('/get-products', async (req, res) => {
     let products = await Product.find({})
-    console.log("All products fetched");
-    console.log(products);
     res.send(products);
 })
 
-// Data base schema for userr 
+// Endpoint to fetch a product by id
+app.get('/product/:id', async (req, res) => {
+    const productId = req.params.id;;
+    try {
+        let product = await Product.findOne({ id: productId });
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        res.json(product);
+    } catch (error) {
+        console.error('Error fetching product:', error.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// End point for update product
+app.put('/update-product/:id', upload.single('image'), async (req, res) => {
+    const productId = req.params.id;
+
+    try {
+        // Find the product by ID
+        const product = await Product.findOne({ id: productId });
+
+        if (!product) {
+            return res.status(404).json({
+                success: 0,
+                error: "Product not found"
+            });
+        }
+
+        // Update product details
+        product.name = req.body.name || product.name;
+        product.category = req.body.category || product.category;
+        product.price = req.body.price || product.price;
+        product.weight = req.body.weight || product.weight;
+        product.color = req.body.color || product.color;
+        product.description = req.body.description || product.description;
+        product.quality = req.body.quality || product.quality;
+        product.brand = req.body.brand || product.brand;
+        product.size = req.body.size || product.size;
+        product.quantity = req.body.quantity || product.quantity;
+
+        // Handle image update if a new image is uploaded
+        req.body.image ? product.image = req.body.image  : product.image
+
+        // Save the updated product
+        await product.save();
+
+        res.json({
+            success: 1,
+            product: product
+        });
+
+    } catch (err) {
+        console.error("Error updating product:", err);
+        res.status(500).json({
+            success: 0,
+            error: "Internal server error"
+        });
+    }
+});
+
+
+// Data base schema for User 
 const Users = mongoose.model("Users", {
     email: {
         type: String,
@@ -250,14 +314,12 @@ app.post('/login', async (req, res) => {
 //Creating a middleware to authenticate user
 const authUser = (req, res, next) => {
     const token = req.header('auth-token');
-    console.log(token);
     if (!token) {
         return res.status(401).send({ errors: "Please authenticate using a valid token" });
     }
 
     try {
         const data = jwt.verify(token, 'secret_ecom');
-        console.log(data.user);
         req.user = data.user;
         next();
     } catch (err) {
@@ -267,14 +329,11 @@ const authUser = (req, res, next) => {
 
 // End point to add products to cart 
 app.post('/addtocart', authUser, async (req, res) => {
-    console.log("Received request with itemId:", req.body);
-    console.log(req.user);
-
     // Retrieve the user data
     let userData = await Users.findOne({
         _id: req.user.id
     });
-    
+
     // Ensure the nested cart array exists
     if (!userData.cart[0]) {
         userData.cart[0] = [];
@@ -300,27 +359,15 @@ app.post('/addtocart', authUser, async (req, res) => {
 
 // Endpoint to remove products from cart
 app.post('/removefromcart', authUser, async (req, res) => {
-    console.log("Received request to remove itemId:", req.body.itemId);
-    console.log(req.user);
 
     try {
-        // Retrieve the user data
         let userData = await Users.findOne({
             _id: req.user.id
         });
 
-        // Ensure the nested cart array exists
-        // if (!userData.cart[0]) {
-        //     userData.cart[0] = [];
-        // }
-
         // Check if the item exists in the cart
         if (userData.cart[0][req.body.itemId]) {
-
             userData.cart[0][req.body.itemId] = 0;
-            // if (userData.cart[0][req.body.itemId] <= 0) {
-            //     delete userData.cart[0][req.body.itemId];
-            // }
         } else {
             throw new Error("Item not found in cart");
         }
@@ -366,7 +413,7 @@ app.get('/getcart', authUser, async (req, res) => {
                         price: product.price,
                         weight: product.weight,
                         size: product.size,
-                        count: userData.cart[0][itemId] 
+                        count: userData.cart[0][itemId]
                     };
 
                     productsInCart.push(productInfo);
@@ -378,25 +425,6 @@ app.get('/getcart', authUser, async (req, res) => {
     } catch (error) {
         console.error("Error fetching user's cart:", error.message);
         res.status(500).json({ error: error.message });
-    }
-});
-
-// Endpoint to fetch a product by id
-app.get('/product/:id', async (req, res) => {
-    const productId = req.params.id;
-    console.log(productId);
-
-    try {
-        let product = await Product.findOne({ id: productId });
-
-        if (!product) {
-            return res.status(404).json({ message: 'Product not found' });
-        }
-
-        res.json(product);
-    } catch (error) {
-        console.error('Error fetching product:', error.message);
-        res.status(500).json({ error: 'Server error' });
     }
 });
 
