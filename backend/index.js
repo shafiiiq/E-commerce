@@ -214,15 +214,15 @@ app.post('/signup', async (req, res) => {
 })
 
 // End point for user login 
-app.post('/login', async(req, res) => {
+app.post('/login', async (req, res) => {
     let user = await Users.findOne({
         email: req.body.email
     })
 
-    if(user) {
+    if (user) {
         const comparePswd = req.body.password === user.password;
 
-        if(comparePswd) {
+        if (comparePswd) {
             const data = {
                 user: {
                     id: user.id
@@ -230,7 +230,7 @@ app.post('/login', async(req, res) => {
             }
             const token = jwt.sign(data, 'secret_ecom')
             res.json({
-                success:true,
+                success: true,
                 token: token
             })
         } else {
@@ -241,16 +241,147 @@ app.post('/login', async(req, res) => {
         }
     } else {
         res.json({
-            success:false,
+            success: false,
             error: "User is not found"
         })
     }
 })
 
-// End point to add products to cart 
-app.post('/addtocart', async (req, res) => {
+//Creating a middleware to authenticate user
+const authUser = (req, res, next) => {
+    const token = req.header('auth-token');
+    console.log(token);
+    if (!token) {
+        return res.status(401).send({ errors: "Please authenticate using a valid token" });
+    }
 
-})
+    try {
+        const data = jwt.verify(token, 'secret_ecom');
+        console.log(data.user);
+        req.user = data.user;
+        next();
+    } catch (err) {
+        res.status(401).send({ errors: "Please authenticate using a valid token" });
+    }
+}
+
+// End point to add products to cart 
+app.post('/addtocart', authUser, async (req, res) => {
+    console.log("Received request with itemId:", req.body);
+    console.log(req.user);
+
+    // Retrieve the user data
+    let userData = await Users.findOne({
+        _id: req.user.id
+    });
+    
+    // Ensure the nested cart array exists
+    if (!userData.cart[0]) {
+        userData.cart[0] = [];
+    }
+
+    // Initialize the item count if it doesn't exist
+    if (!userData.cart[0][req.body.itemId]) {
+        userData.cart[0][req.body.itemId] = 0;
+    }
+
+    // Increment the item count
+    userData.cart[0][req.body.itemId] += 1;
+
+    // Update the user's cart data
+    await Users.findOneAndUpdate(
+        { _id: req.user.id },
+        { cart: userData.cart }
+    );
+
+    // Send a JSON response
+    res.json({ message: "Product added" });
+});
+
+// Endpoint to remove products from cart
+app.post('/removefromcart', authUser, async (req, res) => {
+    console.log("Received request to remove itemId:", req.body.itemId);
+    console.log(req.user);
+
+    try {
+        // Retrieve the user data
+        let userData = await Users.findOne({
+            _id: req.user.id
+        });
+
+        // Ensure the nested cart array exists
+        // if (!userData.cart[0]) {
+        //     userData.cart[0] = [];
+        // }
+
+        // Check if the item exists in the cart
+        if (userData.cart[0][req.body.itemId]) {
+
+            userData.cart[0][req.body.itemId] = 0;
+            // if (userData.cart[0][req.body.itemId] <= 0) {
+            //     delete userData.cart[0][req.body.itemId];
+            // }
+        } else {
+            throw new Error("Item not found in cart");
+        }
+
+        // Update the user's cart data
+        await Users.findOneAndUpdate(
+            { _id: req.user.id },
+            { cart: userData.cart }
+        );
+
+        // Send a JSON response
+        res.json({ message: "Product removed from cart" });
+    } catch (error) {
+        console.error("Error removing product from cart:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// End point to get user cart 
+app.get('/getcart', authUser, async (req, res) => {
+    try {
+        // Retrieve user's cart from database
+        let userData = await Users.findOne({
+            _id: req.user.id
+        });
+
+        let productsInCart = [];
+
+        for (let itemId in userData.cart[0]) {
+            if (userData.cart[0][itemId] > 0) {
+                let product = await Product.findOne({ id: itemId });
+
+                if (product) {
+                    // Create a new object with product details and quantity
+                    let productInfo = {
+                        id: product.id,
+                        name: product.name,
+                        image: product.image,
+                        description: product.description,
+                        category: product.category,
+                        quality: product.quality,
+                        color: product.color,
+                        price: product.price,
+                        weight: product.weight,
+                        size: product.size,
+                        count: userData.cart[0][itemId] 
+                    };
+
+                    productsInCart.push(productInfo);
+                }
+            }
+        }
+        
+        res.json(productsInCart);
+    } catch (error) {
+        console.error("Error fetching user's cart:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 
 app.listen(port, (err) => {
     if (!err) {
